@@ -13,6 +13,9 @@
     "vscode": "^1.80.0"
   },
   "main": "./dist/extension.js",
+  "bin": {
+    "kickbacks": "./dist/cli.js"
+  },
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -194,6 +197,7 @@
   },
   "scripts": {
     "build": "node esbuild.mjs",
+    "cli": "node dist/cli.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "icon": "node scripts/gen-icon.mjs",

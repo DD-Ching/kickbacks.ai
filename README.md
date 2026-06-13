@@ -74,6 +74,32 @@ Older CLIs just keep their stock verbs — nothing breaks.
 
 → **[Get it on the VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Kickbacksai.kickbacks-ai)**
 
+### Terminal / CLI — no VS Code needed
+
+Run `claude` straight from the terminal? The standalone **`kickbacks`** CLI earns
+on the same two terminal surfaces the extension serves (statusline + spinner
+verb) without an editor running.
+
+```bash
+npm run build            # produces dist/cli.js
+node dist/cli.js login   # sign in with Google (one session, shared with the extension)
+node dist/cli.js start   # show ads in the claude statusline + earn — Ctrl-C to stop
+```
+
+| Command | What it does |
+| --- | --- |
+| `kickbacks login` | Google sign-in. The session is **shared** with the VS Code extension — sign in on either, you're signed in on both. |
+| `kickbacks start` | Foreground daemon: fetches ads, keeps the statusline fresh, bills view-time while you're in a session. |
+| `kickbacks status` | Sign-in state, install state, and today/lifetime balance. |
+| `kickbacks restore` | Removes the Kickbacks statusline; your `settings.json` is otherwise untouched. |
+| `kickbacks logout` | Sign out and remove the statusline. |
+
+It writes only the **official** `statusLine` + `spinnerVerbs` keys in
+`~/.claude/settings.json` (an existing statusline HUD is preserved and chained
+*above* the ad). Stop the daemon, run `kickbacks restore`, or sign out to remove
+it. Run it under your process manager of choice (`nohup`, `systemd --user`,
+`pm2`, a login-shell hook…) to keep earning across sessions.
+
 ## 📣 Want to advertise?
 
 You're buying attention from the most technical audience on earth, in the calmest

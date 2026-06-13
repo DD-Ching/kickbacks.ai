@@ -53,25 +53,44 @@ let pkgVersion = "0.0.0";
   const pj = JSON.parse(readFileSync("package.json", "utf8"));
   pkgVersion = String(pj.version || "0.0.0");
 }
+// Build-time defines, shared by the extension bundle and the standalone CLI
+// bundle so both report the same version and honour the same .env flags.
+const BUILD_DEFINE = {
+  // Bake the build epoch into the bundle so the extension can show a LIVE
+  // "built Nh ago" at runtime (the VS Code Installation panel is not author-
+  // extensible — this is the only place a truthful relative age can live).
+  __BUILD_TS__: JSON.stringify(stamp),
+  __BUILD_VERSION__: JSON.stringify(pkgVersion),
+  // Build-time flags from the repo-root .env. Runtime sentinels /
+  // process.env still take precedence at call time (see log.ts +
+  // buildflags.ts) — these change the SHIPPED default only.
+  __DEVELOPER_MODE__: JSON.stringify(BUILD_FLAGS.developer),
+  __ADMIN_URL__: JSON.stringify(BUILD_FLAGS.adminUrl),
+  __SITE_URL__: JSON.stringify(BUILD_FLAGS.siteUrl),
+  __BUILD_VERBOSE__: JSON.stringify(BUILD_FLAGS.verbose),
+  __BUILD_CODEX_OPTIN__: JSON.stringify(BUILD_FLAGS.codex),
+  __BUILD_TEST_HOOKS_OPTIN__: JSON.stringify(BUILD_FLAGS.testHooks),
+  __MANIFEST_PUBKEY_PEM__: JSON.stringify(BUILD_FLAGS.manifestPubkeyPem),
+};
+
 await build({
   entryPoints: ["src/extension.ts"],
   bundle: true, platform: "node", format: "cjs",
   external: ["vscode"], outfile: "dist/extension.js", target: "node18",
-  // Bake the build epoch into the bundle so the extension can show a LIVE
-  // "built Nh ago" at runtime (the VS Code Installation panel is not author-
-  // extensible — this is the only place a truthful relative age can live).
-  define: { __BUILD_TS__: JSON.stringify(stamp),
-            __BUILD_VERSION__: JSON.stringify(pkgVersion),
-            // Build-time flags from the repo-root .env. Runtime sentinels /
-            // process.env still take precedence at call time (see log.ts +
-            // buildflags.ts) — these change the SHIPPED default only.
-            __DEVELOPER_MODE__: JSON.stringify(BUILD_FLAGS.developer),
-            __ADMIN_URL__: JSON.stringify(BUILD_FLAGS.adminUrl),
-            __SITE_URL__: JSON.stringify(BUILD_FLAGS.siteUrl),
-            __BUILD_VERBOSE__: JSON.stringify(BUILD_FLAGS.verbose),
-            __BUILD_CODEX_OPTIN__: JSON.stringify(BUILD_FLAGS.codex),
-            __BUILD_TEST_HOOKS_OPTIN__: JSON.stringify(BUILD_FLAGS.testHooks),
-            __MANIFEST_PUBKEY_PEM__: JSON.stringify(BUILD_FLAGS.manifestPubkeyPem) },
+  define: BUILD_DEFINE,
+});
+
+// Standalone CLI host (dist/cli.js) — the terminal entrypoint for developers
+// who run `claude` without VS Code. Deliberately NOT marking `vscode` external:
+// the CLI must import only vscode-free modules, so the build FAILS LOUDLY if a
+// VS-Code-coupled import sneaks into the CLI graph. The shebang makes the
+// emitted file directly executable as the package `bin`.
+await build({
+  entryPoints: ["src/cli/main.ts"],
+  bundle: true, platform: "node", format: "cjs",
+  outfile: "dist/cli.js", target: "node18",
+  banner: { js: "#!/usr/bin/env node" },
+  define: BUILD_DEFINE,
 });
 // The injected block is a shipped raw asset (NOT bundled).
 copyAsset("src/adapters/claude-code/block.asset.js",
@@ -97,7 +116,7 @@ try {
     .replace(/(<\/h1>)/i, `$1\n\n<!-- BUILD --> <p align="center"><sub>build ${stamp}</sub></p>`);
   writeFileSync("dist/README.md", rd);
 } catch { /* readme is best-effort; never fail the build */ }
-console.log(`built dist/extension.js + CC & Codex block assets + dist/README.md (build ${stamp})`);
+console.log(`built dist/extension.js + dist/cli.js + CC & Codex block assets + dist/README.md (build ${stamp})`);
 console.log(`  build flags: developer=${BUILD_FLAGS.developer}`
   + ` verbose=${BUILD_FLAGS.verbose} codex=${BUILD_FLAGS.codex}`
   + ` testHooks=${BUILD_FLAGS.testHooks}`
